@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Neumorph Word Search</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+        :root { --bg: #e0e5ec; --text: #4a5568; --text-light: #718096; --accent: #667eea; --accent-light: #764ba2; --success: #48bb78; --warning: #ed8936; --danger: #f56565; --shadow-light: #ffffff; --shadow-dark: #a3b1c6; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; touch-action: manipulation; }
+        .neu-raised { background: var(--bg); border-radius: 20px; box-shadow: 9px 9px 16px var(--shadow-dark), -9px -9px 16px var(--shadow-light); }
+        .neu-pressed { background: var(--bg); border-radius: 20px; box-shadow: inset 6px 6px 10px var(--shadow-dark), inset -6px -6px 10px var(--shadow-light); }
+        .neu-btn { background: var(--bg); border: none; border-radius: 50px; padding: 15px 30px; font-size: 16px; font-weight: 600; color: var(--text); cursor: pointer; box-shadow: 6px 6px 12px var(--shadow-dark), -6px -6px 12px var(--shadow-light); transition: all 0.2s ease; outline: none; }
+        .neu-btn:active { box-shadow: inset 4px 4px 8px var(--shadow-dark), inset -4px -4px 8px var(--shadow-light); transform: scale(0.98); }
+        .neu-btn.primary { background: linear-gradient(145deg, var(--accent), var(--accent-light)); color: white; box-shadow: 6px 6px 12px rgba(102,126,234,0.3), -6px -6px 12px var(--shadow-light); }
+        .neu-btn.success { background: linear-gradient(145deg, var(--success), #38a169); color: white; }
+        .neu-btn.danger { background: linear-gradient(145deg, var(--danger), #e53e3e); color: white; }
+        .screen { display: none; min-height: 100vh; padding: 20px; animation: fadeIn 0.5s ease; }
+        .screen.active { display: flex; flex-direction: column; align-items: center; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+        @keyframes pop { 0% { transform: scale(0.5); opacity: 0; } 50% { transform: scale(1.2); } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        @keyframes timerPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(237,137,54,0.4); } 50% { box-shadow: 0 0 0 10px rgba(237,137,54,0); } }
+        @keyframes timerDanger { 0%,100% { box-shadow: 0 0 0 0 rgba(245,101,101,0.4); } 50% { box-shadow: 0 0 0 10px rgba(245,101,101,0); } }
+        @keyframes comboAnim { 0% { opacity: 0; transform: translate(-50%,-50%) scale(0.5); } 30% { opacity: 1; transform: translate(-50%,-50%) scale(1.3); } 100% { opacity: 0; transform: translate(-50%,-100%) scale(1); } }
+
+        /* Splash */
+        #splash-screen { justify-content: center; align-items: center; text-align: center; cursor: pointer; }
+        .splash-logo { width: 150px; height: 150px; border-radius: 50%; background: var(--bg); box-shadow: 15px 15px 30px var(--shadow-dark), -15px -15px 30px var(--shadow-light); display: flex; align-items: center; justify-content: center; margin-bottom: 30px; animation: float 3s ease-in-out infinite; }
+        .splash-logo svg { width: 80px; height: 80px; fill: var(--accent); }
+        .splash-title { font-size: 2.5rem; font-weight: 800; background: linear-gradient(135deg, var(--accent), var(--accent-light)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 10px; }
+        .splash-subtitle { font-size: 1.1rem; color: var(--text-light); margin-bottom: 40px; }
+        .splash-loading { width: 200px; height: 8px; border-radius: 10px; background: var(--bg); box-shadow: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--shadow-light); overflow: hidden; margin-top: 20px; }
+        .splash-loading-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent-light)); border-radius: 10px; transition: width 0.3s ease; }
+        .splash-skip { margin-top: 20px; font-size: 0.8rem; color: var(--text-light); opacity: 0; transition: opacity 1s; }
+        .splash-skip.visible { opacity: 1; }
+
+        /* Menu */
+        .menu-header { text-align: center; margin-bottom: 30px; }
+        .menu-header h1 { font-size: 2rem; background: linear-gradient(135deg, var(--accent), var(--accent-light)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 5px; }
+        .menu-header p { color: var(--text-light); font-size: 0.9rem; }
+        .menu-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; width: 100%; max-width: 400px; margin-bottom: 30px; }
+        .menu-card { aspect-ratio: 1; border-radius: 25px; background: var(--bg); box-shadow: 8px 8px 16px var(--shadow-dark), -8px -8px 16px var(--shadow-light); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s ease; padding: 15px; }
+        .menu-card:hover { transform: translateY(-5px); box-shadow: 12px 12px 24px var(--shadow-dark), -12px -12px 24px var(--shadow-light); }
+        .menu-card:active { transform: scale(0.95); }
+        .menu-card .icon { font-size: 2.5rem; margin-bottom: 10px; }
+        .menu-card .label { font-size: 0.9rem; font-weight: 600; color: var(--text); }
+        .stats-bar { width: 100%; max-width: 400px; padding: 20px; margin-bottom: 20px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; text-align: center; }
+        .stat-item .value { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+        .stat-item .label { font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Level Select */
+        .level-header { width: 100%; max-width: 500px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .level-header h2 { font-size: 1.5rem; }
+        .back-btn { width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; }
+        .level-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; width: 100%; max-width: 500px; margin-bottom: 20px; }
+        .level-btn { aspect-ratio: 1; border-radius: 15px; border: none; background: var(--bg); box-shadow: 5px 5px 10px var(--shadow-dark), -5px -5px 10px var(--shadow-light); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; font-size: 0.85rem; font-weight: 700; color: var(--text); position: relative; }
+        .level-btn:active { box-shadow: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--shadow-light); }
+        .level-btn.locked { opacity: 0.4; cursor: not-allowed; }
+        .level-btn.completed { background: linear-gradient(145deg, var(--success), #38a169); color: white; box-shadow: 5px 5px 10px rgba(72,187,120,0.3), -5px -5px 10px var(--shadow-light); }
+        .level-btn.current { background: linear-gradient(145deg, var(--accent), var(--accent-light)); color: white; box-shadow: 5px 5px 10px rgba(102,126,234,0.3), -5px -5px 10px var(--shadow-light); animation: pulse 2s infinite; }
+        .level-btn .stars { font-size: 0.6rem; margin-top: 2px; }
+        .difficulty-tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center; }
+        .diff-tab { padding: 8px 16px; border-radius: 20px; border: none; background: var(--bg); box-shadow: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light); cursor: pointer; font-size: 0.8rem; font-weight: 600; color: var(--text-light); transition: all 0.2s ease; }
+        .diff-tab.active { background: linear-gradient(145deg, var(--accent), var(--accent-light)); color: white; box-shadow: 4px 4px 8px rgba(102,126,234,0.3), -4px -4px 8px var(--shadow-light); }
+
+        /* Game */
+        .game-header { width: 100%; max-width: 600px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 15px 20px; }
+        .game-info { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; }
+        .info-pill { padding: 8px 14px; border-radius: 25px; font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 5px; }
+        .timer-pill { background: linear-gradient(145deg, var(--warning), #dd6b20); color: white; box-shadow: 4px 4px 8px rgba(237,137,54,0.3), -4px -4px 8px var(--shadow-light); }
+        .timer-pill.danger { background: linear-gradient(145deg, var(--danger), #e53e3e); animation: timerDanger 1s infinite; }
+        .timer-pill.warning { animation: timerPulse 1s infinite; }
+        .score-pill { background: linear-gradient(145deg, var(--accent), var(--accent-light)); color: white; box-shadow: 4px 4px 8px rgba(102,126,234,0.3), -4px -4px 8px var(--shadow-light); }
+        .level-pill { background: var(--bg); box-shadow: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light); }
+        .word-grid-container { width: 100%; max-width: 600px; padding: 15px; margin-bottom: 15px; position: relative; }
+        .word-grid { display: grid; gap: 4px; width: 100%; }
+        .grid-cell { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: clamp(0.7rem, 2.5vw, 1.2rem); font-weight: 700; color: var(--text); background: var(--bg); border-radius: 8px; box-shadow: 3px 3px 6px var(--shadow-dark), -3px -3px 6px var(--shadow-light); cursor: pointer; transition: all 0.15s ease; touch-action: none; }
+        .grid-cell:active { transform: scale(0.92); }
+        .grid-cell.selected { background: linear-gradient(145deg, var(--accent), var(--accent-light)); color: white; box-shadow: inset 2px 2px 4px rgba(0,0,0,0.2), inset -2px -2px 4px rgba(255,255,255,0.2); }
+        .grid-cell.found { background: linear-gradient(145deg, var(--success), #38a169); color: white; box-shadow: inset 2px 2px 4px rgba(0,0,0,0.2), inset -2px -2px 4px rgba(255,255,255,0.2); animation: pop 0.4s ease; }
+        .grid-cell.highlight { background: linear-gradient(145deg, var(--warning), #dd6b20); color: white; }
+        .word-list-container { width: 100%; max-width: 600px; padding: 20px; margin-bottom: 15px; }
+        .word-list-title { font-size: 1rem; font-weight: 700; margin-bottom: 15px; text-align: center; color: var(--text); }
+        .word-list { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+        .word-tag { padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; background: var(--bg); box-shadow: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light); transition: all 0.3s ease; }
+        .word-tag.found { background: linear-gradient(145deg, var(--success), #38a169); color: white; box-shadow: 4px 4px 8px rgba(72,187,120,0.3), -4px -4px 8px var(--shadow-light); text-decoration: line-through; opacity: 0.7; }
+        .word-tag.hint { animation: pulse 1s infinite; background: linear-gradient(145deg, var(--warning), #dd6b20); color: white; }
+        .game-controls { display: flex; gap: 15px; margin-bottom: 20px; }
+        .control-btn { width: 50px; height: 50px; border-radius: 50%; border: none; background: var(--bg); box-shadow: 5px 5px 10px var(--shadow-dark), -5px -5px 10px var(--shadow-light); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; transition: all 0.2s ease; }
+        .control-btn:active { box-shadow: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--shadow-light); }
+
+        /* Modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(5px); }
+        .modal-overlay.active { display: flex; }
+        .modal-content { background: var(--bg); border-radius: 30px; padding: 40px; text-align: center; max-width: 350px; width: 90%; box-shadow: 15px 15px 30px var(--shadow-dark), -15px -15px 30px var(--shadow-light); animation: pop 0.4s ease; }
+        .modal-icon { font-size: 4rem; margin-bottom: 15px; }
+        .modal-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 10px; }
+        .modal-text { color: var(--text-light); margin-bottom: 25px; font-size: 0.95rem; }
+        .modal-buttons { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; }
+
+        /* Settings */
+        .settings-list { width: 100%; max-width: 400px; }
+        .setting-item { display: flex; justify-content: space-between; align-items: center; padding: 20px; margin-bottom: 15px; border-radius: 20px; }
+        .setting-label { font-weight: 600; display: flex; align-items: center; gap: 10px; }
+        .toggle { position: relative; width: 55px; height: 30px; border-radius: 30px; background: var(--bg); box-shadow: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--shadow-light); cursor: pointer; transition: all 0.3s ease; }
+        .toggle.active { background: linear-gradient(145deg, var(--accent), var(--accent-light)); }
+        .toggle-knob { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: var(--bg); box-shadow: 2px 2px 4px var(--shadow-dark), -2px -2px 4px var(--shadow-light); transition: all 0.3s ease; }
+        .toggle.active .toggle-knob { left: 28px; background: white; }
+
+        /* Boss */
+        .boss-stats { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center; }
+        .boss-stat { padding: 15px 25px; border-radius: 20px; text-align: center; }
+        .boss-stat .value { font-size: 1.8rem; font-weight: 700; color: var(--accent); }
+        .boss-stat .label { font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; }
+        .combo-display { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 3rem; font-weight: 800; color: var(--accent); pointer-events: none; opacity: 0; z-index: 100; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
+        .combo-display.show { animation: comboAnim 1s ease forwards; }
+
+        @media (max-width: 400px) {
+            .menu-grid { grid-template-columns: 1fr 1fr; gap: 15px; }
+            .level-grid { grid-template-columns: repeat(4, 1fr); gap: 8px; }
+            .splash-title { font-size: 2rem; }
+            .game-header { flex-wrap: wrap; gap: 10px; }
+            .boss-stats { gap: 10px; }
+            .boss-stat { padding: 10px 15px; }
+            .boss-stat .value { font-size: 1.3rem; }
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--shadow-dark); border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <!-- Splash Screen -->
+    <div id="splash-screen" class="screen active" onclick="skipSplash()">
+        <div class="splash-logo">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+        </div>
+        <h1 class="splash-title">Word Search</h1>
+        <p class="splash-subtitle">200 Levels of Neumorphic Puzzle Fun</p>
+        <div class="splash-loading">
+            <div class="splash-loading-bar" id="loading-bar"></div>
+        </div>
+        <p style="margin-top:15px; color:var(--text-light); font-size:0.85rem;">Loading levels...</p>
+        <p class="splash-skip" id="splash-skip">Tap to skip</p>
+    </div>
+
+    <!-- Main Menu -->
+    <div id="menu-screen" class="screen">
+        <div class="menu-header">
+            <h1>Word Search</h1>
+            <p>Find hidden words in the grid</p>
+        </div>
+        <div class="stats-bar neu-raised">
+            <div class="stats-grid">
+                <div class="stat-item"><div class="value" id="stat-level">1</div><div class="label">Level</div></div>
+                <div class="stat-item"><div class="value" id="stat-score">0</div><div class="label">Score</div></div>
+                <div class="stat-item"><div class="value" id="stat-stars">0</div><div class="label">Stars</div></div>
+            </div>
+        </div>
+        <div class="menu-grid">
+            <div class="menu-card" onclick="goToLevels()"><div class="icon">🎯</div><div class="label">Play</div></div>
+            <div class="menu-card" onclick="goToBoss()"><div class="icon">👑</div><div class="label">Boss Mode</div></div>
+            <div class="menu-card" onclick="goToSettings()"><div class="icon">⚙️</div><div class="label">Settings</div></div>
+            <div class="menu-card" onclick="showHowToPlay()"><div class="icon">❓</div><div class="label">How to Play</div></div>
+        </div>
+    </div>
+
+    <!-- Level Select -->
+    <div id="level-screen" class="screen">
+        <div class="level-header">
+            <button class="back-btn neu-btn" onclick="showScreen('menu-screen')">←</button>
+            <h2>Select Level</h2>
+            <div style="width:45px"></div>
+        </div>
+        <div class="difficulty-tabs">
+            <button class="diff-tab active" onclick="filterLevels('all', this)">All</button>
+            <button class="diff-tab" onclick="filterLevels('Beginner', this)">Beginner</button>
+            <button class="diff-tab" onclick="filterLevels('Easy', this)">Easy</button>
+            <button class="diff-tab" onclick="filterLevels('Medium', this)">Medium</button>
+            <button class="diff-tab" onclick="filterLevels('Hard', this)">Hard</button>
+            <button class="diff-tab" onclick="filterLevels('Expert', this)">Expert</button>
+        </div>
+        <div class="level-grid" id="level-grid"></div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="screen">
+        <div class="game-header neu-raised">
+            <button class="back-btn control-btn" onclick="pauseGame()">⏸</button>
+            <div class="game-info">
+                <div class="level-pill info-pill">Lv <span id="game-level">1</span></div>
+                <div class="timer-pill info-pill" id="timer-pill">⏱ <span id="game-timer">60</span>s</div>
+                <div class="score-pill info-pill">⭐ <span id="game-score">0</span></div>
+            </div>
+            <button class="control-btn" onclick="useHint()">💡</button>
+        </div>
+        <div class="word-grid-container neu-raised" id="grid-container">
+            <div class="word-grid" id="word-grid"></div>
+        </div>
+        <div class="word-list-container neu-raised">
+            <div class="word-list-title">Find These Words</div>
+            <div class="word-list" id="word-list"></div>
+        </div>
+        <div class="game-controls">
+            <button class="control-btn" onclick="pauseGame()">⏸</button>
+            <button class="control-btn" onclick="restartLevel()">🔄</button>
+            <button class="control-btn" onclick="showScreen('menu-screen')">🏠</button>
+        </div>
+    </div>
+
+    <!-- Boss Mode Screen -->
+    <div id="boss-screen" class="screen">
+        <div class="level-header">
+            <button class="back-btn neu-btn" onclick="showScreen('menu-screen')">←</button>
+            <h2>👑 Boss Mode</h2>
+            <div style="width:45px"></div>
+        </div>
+        <div class="boss-stats">
+            <div class="boss-stat neu-raised"><div class="value" id="boss-score">0</div><div class="label">Score</div></div>
+            <div class="boss-stat neu-raised"><div class="value" id="boss-level">1</div><div class="label">Wave</div></div>
+            <div class="boss-stat neu-raised"><div class="value" id="boss-combo">0</div><div class="label">Combo</div></div>
+        </div>
+        <div class="word-grid-container neu-raised" id="boss-grid-container">
+            <div class="word-grid" id="boss-grid"></div>
+        </div>
+        <div class="word-list-container neu-raised">
+            <div class="word-list-title">Find These Words</div>
+            <div class="word-list" id="boss-word-list"></div>
+        </div>
+        <div class="game-controls">
+            <button class="control-btn" onclick="pauseBoss()">⏸</button>
+            <button class="control-btn" onclick="startBossMode()">🔄</button>
+            <button class="control-btn" onclick="showScreen('menu-screen')">🏠</button>
+        </div>
+    </div>
+
+    <!-- Settings Screen -->
+    <div id="settings-screen" class="screen">
+        <div class="level-header">
+            <button class="back-btn neu-btn" onclick="showScreen('menu-screen')">←</button>
+            <h2>Settings</h2>
+            <div style="width:45px"></div>
+        </div>
+        <div class="settings-list">
+            <div class="setting-item neu-raised">
+                <div class="setting-label">🔊 Sound Effects</div>
+                <div class="toggle active" id="toggle-sound" onclick="toggleSetting('sound')"><div class="toggle-knob"></div></div>
+            </div>
+            <div class="setting-item neu-raised">
+                <div class="setting-label">📳 Vibration</div>
+                <div class="toggle active" id="toggle-vibrate" onclick="toggleSetting('vibrate')"><div class="toggle-knob"></div></div>
+            </div>
+            <div class="setting-item neu-raised">
+                <div class="setting-label">🎵 Background Music</div>
+                <div class="toggle" id="toggle-music" onclick="toggleSetting('music')"><div class="toggle-knob"></div></div>
+            </div>
+            <div class="setting-item neu-raised">
+                <div class="setting-label">💡 Hints</div>
+                <div class="toggle active" id="toggle-hints" onclick="toggleSetting('hints')"><div class="toggle-knob"></div></div>
+            </div>
+        </div>
+        <button class="neu-btn danger" style="margin-top:30px; width:200px;" onclick="resetProgress()">Reset Progress</button>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modal">
+        <div class="modal-content">
+            <div class="modal-icon" id="modal-icon">🎉</div>
+            <div class="modal-title" id="modal-title">Level Complete!</div>
+            <div class="modal-text" id="modal-text">Great job!</div>
+            <div class="modal-buttons" id="modal-buttons"></div>
+        </div>
+    </div>
+
+    <!-- Combo Display -->
+    <div class="combo-display" id="combo-display"></div>
+
+    <script>
+
+// ==================== WORD DATA ====================
+const WORD_POOL = {
+    animals: ["DOG","CAT","BIRD","FISH","LION","TIGER","BEAR","WOLF","FOX","DEER","HORSE","SHEEP","GOAT","COW","PIG","DUCK","GOOSE","SWAN","EAGLE","HAWK","OWL","BAT","RAT","MOUSE","RABBIT","HARE","SQUIRREL","CHIPMUNK","BEAVER","OTTER","SEAL","WHALE","DOLPHIN","SHARK","OCTOPUS","CRAB","LOBSTER","SHRIMP","SNAIL","WORM","SNAKE","LIZARD","FROG","TOAD","TURTLE","CROCODILE","ALLIGATOR","CHAMELEON","IGUANA","GECKO","ELEPHANT","GIRAFFE","ZEBRA","RHINO","HIPPO","BUFFALO","GAZELLE","ANTELOPE","CHEETAH","LEOPARD","PANTHER","JAGUAR","PUMA","COUGAR","LYNX","BOBCAT","WOMBAT","KOALA","KANGAROO","WALLABY","PLATYPUS","ECHIDNA","OSTRICH","EMU","CASSOWARY","KIWI","PEACOCK","PARROT","MACAW","COCKATOO","TOUCAN","FLAMINGO","PELICAN","STORK","CRANE","HERON","PENGUIN","ALBATROSS","SEAGULL","CROW","RAVEN","MAGPIE","JAY","FINCH","SPARROW","ROBIN","WREN","THRUSH","WARBLER","CANARY"],
+    food: ["APPLE","BANANA","ORANGE","GRAPE","PEACH","PEAR","PLUM","CHERRY","BERRY","MELON","WATERMELON","PINEAPPLE","MANGO","PAPAYA","COCONUT","LEMON","LIME","GRAPEFRUIT","TANGERINE","KIWI","STRAWBERRY","RASPBERRY","BLUEBERRY","BLACKBERRY","CRANBERRY","AVOCADO","TOMATO","POTATO","CARROT","ONION","GARLIC","GINGER","PEPPER","CHILI","CORN","WHEAT","RICE","OATS","BARLEY","RYE","BREAD","CAKE","PIE","COOKIE","BISCUIT","CRACKER","CEREAL","PASTA","NOODLE","PIZZA","BURGER","SANDWICH","SALAD","SOUP","STEW","CURRY","STEAK","ROAST","GRILL","FRY","CHEESE","BUTTER","CREAM","YOGURT","MILK","HONEY","SUGAR","SALT","SPICE","CHOCOLATE","CANDY","SWEET","DESSERT","ICECREAM","PUDDING","CUSTARD","JELLY","JAM","MARMALADE","COFFEE","TEA","JUICE","SODA","WATER","WINE","BEER","COCKTAIL","SMOOTHIE","SHAKE","EGG","BACON","HAM","SAUSAGE","CHICKEN","TURKEY","DUCK","LAMB","BEEF","PORK"],
+    nature: ["TREE","FLOWER","GRASS","LEAF","BUSH","SHRUB","FERN","MOSS","LICHEN","VINE","ROOT","BRANCH","TRUNK","BARK","SAP","SEED","FRUIT","NUT","ACORN","CONE","FOREST","JUNGLE","RAINFOREST","SAVANNA","DESERT","TUNDRA","TAIGA","PRAIRIE","MEADOW","FIELD","MOUNTAIN","HILL","VALLEY","CANYON","CLIFF","PLATEAU","VOLCANO","CRATER","CAVE","GEYSER","RIVER","STREAM","CREEK","BROOK","LAKE","POND","POOL","SPRING","WATERFALL","DELTA","OCEAN","SEA","BAY","GULF","COVE","HARBOR","PORT","BEACH","SHORE","COAST","ISLAND","PENINSULA","CAPE","ARCHIPELAGO","REEF","ATOLL","LAGOON","FJORD","STRAIT","CHANNEL","CLOUD","RAIN","SNOW","HAIL","SLEET","FOG","MIST","DEW","FROST","ICE","STORM","THUNDER","LIGHTNING","HURRICANE","TORNADO","TYPHOON","CYCLONE","BLIZZARD","AVALANCHE","EARTHQUAKE","SUN","MOON","STAR","PLANET","GALAXY","UNIVERSE","COMET","ASTEROID","METEOR","ECLIPSE"],
+    colors: ["RED","BLUE","GREEN","YELLOW","ORANGE","PURPLE","PINK","BROWN","BLACK","WHITE","GRAY","GREY","GOLD","SILVER","BRONZE","COPPER","CRIMSON","SCARLET","MAROON","BURGUNDY","RUBY","CHERRY","ROSE","CORAL","SALMON","PEACH","APRICOT","AMBER","RUST","SAFFRON","GOLDEN","LEMON","CHARTREUSE","LIME","OLIVE","EMERALD","JADE","TEAL","TURQUOISE","AQUA","CYAN","SKY","AZURE","COBALT","NAVY","INDIGO","VIOLET","LAVENDER","LILAC","MAUVE","PLUM","MAGENTA","FUCHSIA","GARNET","AMETHYST","PERIWINKLE","SLATE","CHARCOAL","EBONY","IVORY","CREAM","BEIGE","TAN","CARAMEL","MOCHA","CHOCOLATE","COFFEE","TAUPE","MAHOGANY","CHESTNUT","SIENNA","UMBER","OCHRE","TERRACOTTA","CINNAMON","GINGER","HONEY","BLUSH","BUBBLEGUM","HOTPINK","ORCHID","THISTLE","WISTERIA","HELIOTROPE","IRIS","HYACINTH"],
+    sports: ["SOCCER","FOOTBALL","BASKETBALL","BASEBALL","TENNIS","GOLF","HOCKEY","CRICKET","RUGBY","VOLLEYBALL","SWIMMING","DIVING","SURFING","SKIING","SNOWBOARD","SKATING","GYMNASTICS","ATHLETICS","RUNNING","JUMPING","THROWING","BOXING","WRESTLING","JUDO","KARATE","TAEKWONDO","FENCING","ARCHERY","SHOOTING","ROWING","CANOE","KAYAK","SAILING","WINDSURF","KITESURF","PARAGLIDE","SKYDIVE","BUNGEE","CLIMBING","HIKING","CYCLING","BMX","MOUNTAIN","ROAD","TRACK","TRIATHLON","MARATHON","SPRINT","RELAY","HURDLE","POLE","HIGH","LONG","TRIPLE","SHOTPUT","DISCUS","HAMMER","JAVELIN","DECATHLON","HEPTATHLON","BADMINTON","TABLETENNIS","SQUASH","RACQUETBALL","HANDBALL","WATERPOLO","SYNCHRO","SPRINGBOARD","PLATFORM","EQUESTRIAN","POLO","DRESSAGE","JUMPING","EVENTING","RODEO","BULLRIDE","BARREL","REINING","CUTTING","MOTOR","RACING","FORMULA","NASCAR","RALLY","DRAG","MOTO","SUPERBIKE","ENDURANCE","LEMAN","ESPORTS","GAMING","CHESS","POKER","BILLIARD","SNOOKER","DARTS","BOWLING","CURLING","LACROSSE"],
+    countries: ["USA","CANADA","MEXICO","BRAZIL","ARGENTINA","CHILE","PERU","COLOMBIA","VENEZUELA","ECUADOR","UK","FRANCE","GERMANY","ITALY","SPAIN","PORTUGAL","NETHERLANDS","BELGIUM","SWITZERLAND","AUSTRIA","SWEDEN","NORWAY","DENMARK","FINLAND","ICELAND","POLAND","CZECH","HUNGARY","ROMANIA","BULGARIA","GREECE","TURKEY","RUSSIA","UKRAINE","BELARUS","LITHUANIA","LATVIA","ESTONIA","SLOVAKIA","SLOVENIA","CROATIA","SERBIA","BOSNIA","MONTENEGRO","MACEDONIA","ALBANIA","MOLDOVA","GEORGIA","ARMENIA","CHINA","JAPAN","KOREA","INDIA","PAKISTAN","BANGLADESH","NEPAL","BHUTAN","MYANMAR","THAILAND","VIETNAM","LAOS","CAMBODIA","MALAYSIA","SINGAPORE","INDONESIA","PHILIPPINES","BRUNEI","AUSTRALIA","NEWZEALAND","FIJI","SAMOA","TONGA","VANUATU","NAURU","PALAU","MARSHALL","MICRONESIA","KIRIBATI","EGYPT","NIGERIA","ETHIOPIA","KENYA","TANZANIA","UGANDA","GHANA","MOROCCO","ALGERIA","TUNISIA","SOUTHAFRICA","ZIMBABWE","ZAMBIA","BOTSWANA","NAMIBIA","ANGOLA","MOZAMBIQUE","MADAGASCAR","MAURITIUS","SEYCHELLES"],
+    technology: ["COMPUTER","LAPTOP","TABLET","PHONE","SMARTPHONE","WATCH","CAMERA","PRINTER","SCANNER","MONITOR","KEYBOARD","MOUSE","SPEAKER","HEADPHONE","MICROPHONE","WEBCAM","ROUTER","MODEM","SWITCH","HUB","SERVER","DATABASE","CLOUD","NETWORK","INTERNET","WEBSITE","BROWSER","SEARCH","EMAIL","MESSAGE","SOFTWARE","HARDWARE","FIRMWARE","DRIVER","PROGRAM","CODE","SCRIPT","ALGORITHM","FUNCTION","VARIABLE","ARRAY","OBJECT","STRING","NUMBER","BOOLEAN","LOOP","CONDITION","CLASS","METHOD","INTERFACE","API","SDK","FRAMEWORK","LIBRARY","MODULE","PACKAGE","PLUGIN","EXTENSION","ADDON","WIDGET","ROBOT","DRONE","SENSOR","ACTUATOR","MOTOR","BATTERY","SOLAR","CHIP","PROCESSOR","MEMORY","STORAGE","DRIVE","DISK","FLASH","RAM","ROM","CACHE","BUFFER","REGISTER","CIRCUIT","QUANTUM","BLOCKCHAIN","CRYPTO","BITCOIN","ETHEREUM","WALLET","MINING","HASH","LEDGER","SMART","MACHINE","LEARNING","NEURAL","NETWORK","DEEP","MODEL","TRAINING","INFERENCE"],
+    space: ["ASTRONAUT","ROCKET","SPACESHIP","SATELLITE","STATION","ORBIT","GRAVITY","ATMOSPHERE","OXYGEN","VACUUM","PLANET","EARTH","MARS","VENUS","JUPITER","SATURN","URANUS","NEPTUNE","MERCURY","PLUTO","MOON","PHOBOS","DEIMOS","EUROPA","GANYMEDE","CALLISTO","IO","TITAN","ENCELADUS","TITANIA","ASTEROID","COMET","METEOR","METEORITE","SHOOTING","FIREBALL","BOLIDE","NEBULA","GALAXY","UNIVERSE","BLACKHOLE","WORMHOLE","SUPERNOVA","NOVA","PULSAR","QUASAR","CONSTELLATION","ZODIAC","HORIZON","TELESCOPE","OBSERVATORY","RADAR","RADIO","SPECTRUM","INFRARED","ULTRAVIOLET","XRAY","GAMMA","COSMIC","LAUNCH","LIFTOFF","BOOSTER","STAGE","PAYLOAD","CARGO","CREW","CAPSULE","MODULE","LANDER","ROVER","PROBE","ORBITER","FLYBY","MISSION","EXPEDITION","VOYAGE","JOURNEY","TRAVEL","EXPLORATION","ALIEN","EXTRATERRESTRIAL","UFO","MARTIAN","VENUSIAN","JOVIAN","SATURNIAN","LUNAR","SOLAR","STELLAR","COSMOS","ASTRONOMY","ASTROLOGY","ASTROPHYSICS","COSMOLOGY","SPACE","VOID","INFINITY","ETERNITY","BEYOND"],
+    music: ["GUITAR","PIANO","VIOLIN","DRUMS","BASS","SAXOPHONE","TRUMPET","FLUTE","CLARINET","OBOE","CELLO","HARP","BANJO","MANDOLIN","UKULELE","ACCORDION","HARMONICA","SYNTHESIZER","KEYBOARD","ORGAN","MELODY","HARMONY","RHYTHM","BEAT","TEMPO","PITCH","TONE","NOTE","CHORD","SCALE","SONG","ALBUM","SINGLE","TRACK","RECORD","VINYL","CASSETTE","CD","MP3","STREAMING","SINGER","VOCALIST","MUSICIAN","BAND","GROUP","DUO","TRIO","QUARTET","QUINTET","ORCHESTRA","CHOIR","ENSEMBLE","CONDUCTOR","COMPOSER","LYRICIST","PRODUCER","DJ","REMIX","COVER","MEDLEY","ROCK","POP","JAZZ","BLUES","SOUL","FUNK","DISCO","REGGAE","SKA","PUNK","METAL","GRUNGE","ALTERNATIVE","INDIE","FOLK","COUNTRY","BLUEGRASS","CLASSICAL","OPERA","BALLET","RAP","HIP","HOP","TRAP","EDM","HOUSE","TECHNO","TRANCE","DUBSTEP","AMBIENT","FESTIVAL","CONCERT","GIG","SHOW","PERFORMANCE","TOUR","VENUE","STAGE","AUDIENCE","CROWD"]
+};
+
+// Generate 200 levels
+const LEVELS = [];
+const allCategories = Object.keys(WORD_POOL);
+
+for (let i = 1; i <= 200; i++) {
+    let gridSize, numWords, timeLimit, difficulty;
+
+    if (i <= 20) {
+        difficulty = "Beginner";
+        gridSize = i <= 10 ? 8 : 9;
+        numWords = 3 + Math.floor((i - 1) / 5);
+        timeLimit = 120 - (i - 1) * 2;
+    } else if (i <= 50) {
+        difficulty = "Easy";
+        gridSize = i <= 35 ? 10 : 11;
+        numWords = 5 + Math.floor((i - 21) / 5);
+        timeLimit = 90 - (i - 21);
+    } else if (i <= 100) {
+        difficulty = "Medium";
+        gridSize = i <= 75 ? 12 : 13;
+        numWords = 7 + Math.floor((i - 51) / 5);
+        timeLimit = 80 - Math.floor((i - 51) * 0.5);
+    } else if (i <= 150) {
+        difficulty = "Hard";
+        gridSize = i <= 125 ? 14 : 15;
+        numWords = 10 + Math.floor((i - 101) / 5);
+        timeLimit = 70 - Math.floor((i - 101) * 0.4);
+    } else {
+        difficulty = "Expert";
+        gridSize = i <= 175 ? 16 : 18;
+        numWords = 12 + Math.floor((i - 151) / 5);
+        timeLimit = 60 - Math.floor((i - 151) * 0.3);
+    }
+
+    const numCats = difficulty === "Beginner" ? 1 : (difficulty === "Expert" || difficulty === "Hard" ? 3 : 2);
+    const categories = [];
+    const catsCopy = [...allCategories];
+    for (let c = 0; c < numCats && catsCopy.length > 0; c++) {
+        const idx = Math.floor(Math.random() * catsCopy.length);
+        categories.push(catsCopy.splice(idx, 1)[0]);
+    }
+
+    const allWords = [];
+    categories.forEach(cat => {
+        WORD_POOL[cat].forEach(w => { if (w.length <= gridSize) allWords.push(w); });
+    });
+
+    const selected = [];
+    const wordsCopy = [...allWords];
+    while (selected.length < numWords && wordsCopy.length > 0) {
+        const idx = Math.floor(Math.random() * wordsCopy.length);
+        const word = wordsCopy.splice(idx, 1)[0];
+        if (!selected.includes(word)) selected.push(word);
+    }
+
+    LEVELS.push({
+        level: i,
+        grid_size: gridSize,
+        words: selected,
+        time_limit: timeLimit,
+        categories: categories,
+        difficulty: difficulty
+    });
+}
+
+// ==================== GAME STATE ====================
+let gameState = {
+    currentLevel: 1,
+    unlockedLevel: 1,
+    totalScore: 0,
+    totalStars: 0,
+    levelStars: {},
+    settings: { sound: true, vibrate: true, music: false, hints: true }
+};
+
+let currentGame = { grid: [], words: [], foundWords: [], selectedCells: [], gridSize: 8, timeLeft: 60, timerInterval: null, score: 0, isPlaying: false, isPaused: false, hintsUsed: 0, startTime: null };
+let bossState = { wave: 1, score: 0, combo: 0, maxCombo: 0, grid: [], words: [], foundWords: [], selectedCells: [], gridSize: 10, timeLeft: 45, timerInterval: null, isPlaying: false, isPaused: false, wordsFoundThisWave: 0 };
+let audioCtx = null;
+let isSelecting = false;
+let selectionStart = null;
+let bossSelecting = false;
+let bossSelectionStart = null;
+
+// ==================== INITIALIZATION ====================
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        loadGameState();
+        initAudio();
+        startSplashAnimation();
+    } catch(e) {
+        console.error('Init error:', e);
+        showScreen('menu-screen');
+    }
+});
+
+function initAudio() {
+    try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch(e) {
+        console.log('Audio not supported');
+        audioCtx = null;
+    }
+}
+
+function playSound(type) {
+    if (!gameState.settings.sound || !audioCtx) return;
+    try {
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        switch(type) {
+            case 'select':
+                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + 0.1);
+                break;
+            case 'found':
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(523, audioCtx.currentTime);
+                oscillator.frequency.setValueAtTime(659, audioCtx.currentTime + 0.1);
+                oscillator.frequency.setValueAtTime(784, audioCtx.currentTime + 0.2);
+                gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + 0.4);
+                break;
+            case 'win':
+                [523, 659, 784, 1047].forEach((freq, i) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.frequency.setValueAtTime(freq, audioCtx.currentTime + i * 0.15);
+                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime + i * 0.15);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.15 + 0.3);
+                    osc.start(audioCtx.currentTime + i * 0.15);
+                    osc.stop(audioCtx.currentTime + i * 0.15 + 0.3);
+                });
+                break;
+            case 'lose':
+                oscillator.frequency.setValueAtTime(400, audioCtx.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.5);
+                gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + 0.5);
+                break;
+            case 'tick':
+                oscillator.frequency.setValueAtTime(1000, audioCtx.currentTime);
+                gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + 0.05);
+                break;
+            case 'combo':
+                oscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.2);
+                gainNode.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + 0.3);
+                break;
+        }
+    } catch(e) {
+        console.log('Sound error:', e);
+    }
+}
+
+function vibrate(pattern) {
+    if (gameState.settings.vibrate && navigator.vibrate) {
+        try { navigator.vibrate(pattern); } catch(e) {}
+    }
+}
+
+// ==================== SPLASH SCREEN ====================
+let splashSkipped = false;
+function startSplashAnimation() {
+    const bar = document.getElementById('loading-bar');
+    const skipText = document.getElementById('splash-skip');
+    let progress = 0;
+
+    setTimeout(() => { if (skipText) skipText.classList.add('visible'); }, 1500);
+
+    const interval = setInterval(() => {
+        if (splashSkipped) { clearInterval(interval); return; }
+        progress += Math.random() * 15 + 5;
+        if (progress >= 100) {
+            progress = 100;
+            clearInterval(interval);
+            setTimeout(() => { if (!splashSkipped) showScreen('menu-screen'); }, 300);
+        }
+        if (bar) bar.style.width = progress + '%';
+    }, 200);
+}
+
+function skipSplash() {
+    splashSkipped = true;
+    showScreen('menu-screen');
+}
+
+// ==================== SCREEN MANAGEMENT ====================
+function showScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const screen = document.getElementById(screenId);
+    if (screen) screen.classList.add('active');
+
+    if (screenId === 'menu-screen') updateMenuStats();
+    else if (screenId === 'level-screen') renderLevelGrid('all');
+    else if (screenId === 'boss-screen' && !bossState.isPlaying) startBossMode();
+}
+
+function goToLevels() { showScreen('level-screen'); }
+function goToBoss() { showScreen('boss-screen'); }
+function goToSettings() { showScreen('settings-screen'); }
+
+// ==================== MENU ====================
+function updateMenuStats() {
+    document.getElementById('stat-level').textContent = gameState.currentLevel;
+    document.getElementById('stat-score').textContent = gameState.totalScore;
+    document.getElementById('stat-stars').textContent = gameState.totalStars;
+}
+
+// ==================== LEVEL SELECT ====================
+function renderLevelGrid(filter) {
+    const grid = document.getElementById('level-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    LEVELS.forEach(level => {
+        if (filter !== 'all' && level.difficulty !== filter) return;
+
+        const btn = document.createElement('button');
+        btn.className = 'level-btn';
+
+        const isUnlocked = level.level <= gameState.unlockedLevel;
+        const isCompleted = gameState.levelStars[level.level] !== undefined;
+        const isCurrent = level.level === gameState.currentLevel;
+
+        if (!isUnlocked) btn.classList.add('locked');
+        if (isCompleted) btn.classList.add('completed');
+        if (isCurrent) btn.classList.add('current');
+
+        const stars = gameState.levelStars[level.level] || 0;
+        const starStr = '⭐'.repeat(stars) + '☆'.repeat(Math.max(0, 3 - stars));
+
+        btn.innerHTML = '<div>' + level.level + '</div><div class="stars">' + (isUnlocked ? starStr : '🔒') + '</div>';
+
+        if (isUnlocked) {
+            btn.onclick = function() { startLevel(level.level); };
+        }
+
+        grid.appendChild(btn);
+    });
+}
+
+function filterLevels(difficulty, el) {
+    document.querySelectorAll('.diff-tab').forEach(t => t.classList.remove('active'));
+    if (el) el.classList.add('active');
+    renderLevelGrid(difficulty);
+}
+
+// ==================== WORD SEARCH GENERATOR ====================
+function generateWordSearch(words, size) {
+    let grid = Array(size).fill(null).map(() => Array(size).fill(''));
+    let placedWords = [];
+    const directions = [
+        {dr: 0, dc: 1}, {dr: 0, dc: -1},
+        {dr: 1, dc: 0}, {dr: -1, dc: 0},
+        {dr: 1, dc: 1}, {dr: -1, dc: -1},
+        {dr: 1, dc: -1}, {dr: -1, dc: 1}
+    ];
+    const sortedWords = [...words].sort((a, b) => b.length - a.length);
+
+    for (const word of sortedWords) {
+        const upperWord = word.toUpperCase();
+        let placed = false;
+        let attempts = 0;
+        const maxAttempts = 100;
+
+        while (!placed && attempts < maxAttempts) {
+            attempts++;
+            const dir = directions[Math.floor(Math.random() * directions.length)];
+            let minRow = 0, maxRow = size - 1, minCol = 0, maxCol = size - 1;
+
+            if (dir.dr === 1) maxRow = size - upperWord.length;
+            if (dir.dr === -1) minRow = upperWord.length - 1;
+            if (dir.dc === 1) maxCol = size - upperWord.length;
+            if (dir.dc === -1) minCol = upperWord.length - 1;
+
+            const startRow = Math.floor(Math.random() * (maxRow - minRow + 1)) + minRow;
+            const startCol = Math.floor(Math.random() * (maxCol - minCol + 1)) + minCol;
+
+            let fits = true;
+            const positions = [];
+
+            for (let i = 0; i < upperWord.length; i++) {
+                const row = startRow + i * dir.dr;
+                const col = startCol + i * dir.dc;
+                if (row < 0 || row >= size || col < 0 || col >= size) { fits = false; break; }
+                if (grid[row][col] !== '' && grid[row][col] !== upperWord[i]) { fits = false; break; }
+                positions.push({row, col});
+            }
+
+            if (fits) {
+                for (let i = 0; i < upperWord.length; i++) {
+                    const p = positions[i];
+                    grid[p.row][p.col] = upperWord[i];
+                }
+                placedWords.push({word: upperWord, positions: positions, found: false});
+                placed = true;
+            }
+        }
+    }
+
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+            if (grid[r][c] === '') grid[r][c] = alphabet[Math.floor(Math.random() * alphabet.length)];
+        }
+    }
+    return {grid, placedWords};
+}
+
+// ==================== GAME PLAY ====================
+function startLevel(levelNum) {
+    const level = LEVELS.find(l => l.level === levelNum);
+    if (!level) return;
+
+    gameState.currentLevel = levelNum;
+    saveGameState();
+
+    currentGame = {
+        grid: [], words: [], foundWords: [], selectedCells: [],
+        gridSize: level.grid_size, timeLeft: Math.floor(level.time_limit),
+        timerInterval: null, score: 0, isPlaying: true, isPaused: false,
+        hintsUsed: 0, startTime: Date.now()
+    };
+
+    const result = generateWordSearch(level.words, level.grid_size);
+    currentGame.grid = result.grid;
+    currentGame.words = result.placedWords;
+
+    document.getElementById('game-level').textContent = levelNum;
+    document.getElementById('game-timer').textContent = currentGame.timeLeft;
+    document.getElementById('game-score').textContent = '0';
+
+    const timerPill = document.getElementById('timer-pill');
+    if (timerPill) { timerPill.classList.remove('danger', 'warning'); }
+
+    renderGrid();
+    renderWordList();
+    showScreen('game-screen');
+    startTimer();
+}
+
+function renderGrid() {
+    const gridEl = document.getElementById('word-grid');
+    if (!gridEl) return;
+    gridEl.innerHTML = '';
+    gridEl.style.gridTemplateColumns = 'repeat(' + currentGame.gridSize + ', 1fr)';
+
+    for (let r = 0; r < currentGame.gridSize; r++) {
+        for (let c = 0; c < currentGame.gridSize; c++) {
+            const cell = document.createElement('div');
+            cell.className = 'grid-cell';
+            cell.dataset.row = r;
+            cell.dataset.col = c;
+            cell.textContent = currentGame.grid[r][c];
+            cell.addEventListener('mousedown', handleCellStart);
+            cell.addEventListener('mouseover', handleCellOver);
+            cell.addEventListener('mouseup', handleCellEnd);
+            cell.addEventListener('touchstart', handleTouchStart, {passive: false});
+            cell.addEventListener('touchmove', handleTouchMove, {passive: false});
+            cell.addEventListener('touchend', handleCellEnd);
+            gridEl.appendChild(cell);
+        }
+    }
+}
+
+function renderWordList() {
+    const listEl = document.getElementById('word-list');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    currentGame.words.forEach(w => {
+        const tag = document.createElement('div');
+        tag.className = 'word-tag' + (w.found ? ' found' : '');
+        tag.textContent = w.word;
+        tag.dataset.word = w.word;
+        listEl.appendChild(tag);
+    });
+}
+
+// ==================== CELL INTERACTION ====================
+function handleCellStart(e) {
+    if (!currentGame.isPlaying || currentGame.isPaused) return;
+    e.preventDefault();
+    const cell = e.target.closest('.grid-cell');
+    if (!cell) return;
+    isSelecting = true;
+    selectionStart = {row: parseInt(cell.dataset.row), col: parseInt(cell.dataset.col)};
+    currentGame.selectedCells = [selectionStart];
+    updateSelection();
+    playSound('select');
+    vibrate(10);
+}
+
+function handleCellOver(e) {
+    if (!isSelecting || !currentGame.isPlaying || currentGame.isPaused) return;
+    e.preventDefault();
+    const cell = e.target.closest('.grid-cell');
+    if (!cell) return;
+    const end = {row: parseInt(cell.dataset.row), col: parseInt(cell.dataset.col)};
+    currentGame.selectedCells = getLineCells(selectionStart, end);
+    updateSelection();
+}
+
+function handleCellEnd(e) {
+    if (!isSelecting) return;
+    e.preventDefault();
+    isSelecting = false;
+    checkWord();
+    currentGame.selectedCells = [];
+    updateSelection();
+}
+
+function handleTouchStart(e) {
+    if (!currentGame.isPlaying || currentGame.isPaused) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const cell = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!cell || !cell.classList.contains('grid-cell')) return;
+    isSelecting = true;
+    selectionStart = {row: parseInt(cell.dataset.row), col: parseInt(cell.dataset.col)};
+    currentGame.selectedCells = [selectionStart];
+    updateSelection();
+    playSound('select');
+    vibrate(10);
+}
+
+function handleTouchMove(e) {
+    if (!isSelecting || !currentGame.isPlaying || currentGame.isPaused) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const cell = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!cell || !cell.classList.contains('grid-cell')) return;
+    const end = {row: parseInt(cell.dataset.row), col: parseInt(cell.dataset.col)};
+    currentGame.selectedCells = getLineCells(selectionStart, end);
+    updateSelection();
+}
+
+function getLineCells(start, end) {
+    const cells = [];
+    const dr = end.row - start.row;
+    const dc = end.col - start.col;
+    if (dr === 0 && dc === 0) return [start];
+    if (dr !== 0 && dc !== 0 && Math.abs(dr) !== Math.abs(dc)) return [start];
+    if (dr === 0 || dc === 0 || Math.abs(dr) === Math.abs(dc)) {
+        const stepR = dr === 0 ? 0 : (dr > 0 ? 1 : -1);
+        const stepC = dc === 0 ? 0 : (dc > 0 ? 1 : -1);
+        const steps = Math.max(Math.abs(dr), Math.abs(dc));
+        for (let i = 0; i <= steps; i++) {
+            cells.push({row: start.row + i * stepR, col: start.col + i * stepC});
+        }
+    }
+    return cells;
+}
+
+function updateSelection() {
+    document.querySelectorAll('#word-grid .grid-cell').forEach(cell => cell.classList.remove('selected'));
+    currentGame.selectedCells.forEach(({row, col}) => {
+        const cell = document.querySelector('#word-grid .grid-cell[data-row="' + row + '"][data-col="' + col + '"]');
+        if (cell) cell.classList.add('selected');
+    });
+}
+
+function checkWord() {
+    if (currentGame.selectedCells.length < 2) return;
+    const selectedWord = currentGame.selectedCells.map(({row, col}) => currentGame.grid[row][col]).join('');
+    const reversedWord = selectedWord.split('').reverse().join('');
+    let found = false;
+
+    for (const wordObj of currentGame.words) {
+        if (wordObj.found) continue;
+        if (selectedWord === wordObj.word || reversedWord === wordObj.word) {
+            const positions = currentGame.selectedCells;
+            const wp = wordObj.positions;
+            const match = positions.length === wp.length && 
+                (positions.every((p, i) => p.row === wp[i].row && p.col === wp[i].col) ||
+                 positions.every((p, i) => p.row === wp[wp.length - 1 - i].row && p.col === wp[wp.length - 1 - i].col));
+
+            if (match) {
+                wordObj.found = true;
+                currentGame.foundWords.push(wordObj.word);
+                found = true;
+
+                wordObj.positions.forEach(({row, col}) => {
+                    const cell = document.querySelector('#word-grid .grid-cell[data-row="' + row + '"][data-col="' + col + '"]');
+                    if (cell) { cell.classList.add('found'); cell.classList.remove('selected'); }
+                });
+
+                const tag = document.querySelector('#word-list .word-tag[data-word="' + wordObj.word + '"]');
+                if (tag) tag.classList.add('found');
+
+                const wordScore = wordObj.word.length * 10;
+                currentGame.score += wordScore;
+                document.getElementById('game-score').textContent = currentGame.score;
+
+                playSound('found');
+                vibrate([30, 50, 30]);
+                break;
+            }
+        }
+    }
+
+    if (!found) {
+        vibrate(20);
+        const grid = document.getElementById('word-grid');
+        if (grid) { grid.style.animation = 'shake 0.3s ease'; setTimeout(() => grid.style.animation = '', 300); }
+    }
+
+    if (currentGame.foundWords.length === currentGame.words.length) levelComplete();
+}
+
+function startTimer() {
+    if (currentGame.timerInterval) clearInterval(currentGame.timerInterval);
+    currentGame.timerInterval = setInterval(() => {
+        if (currentGame.isPaused) return;
+        currentGame.timeLeft--;
+
+        const timerEl = document.getElementById('game-timer');
+        const pill = document.getElementById('timer-pill');
+        if (timerEl) timerEl.textContent = currentGame.timeLeft;
+
+        if (currentGame.timeLeft <= 10) {
+            if (pill) { pill.classList.add('danger'); pill.classList.remove('warning'); }
+            if (currentGame.timeLeft > 0) playSound('tick');
+        } else if (currentGame.timeLeft <= 20) {
+            if (pill) { pill.classList.add('warning'); pill.classList.remove('danger'); }
+        }
+
+        if (currentGame.timeLeft <= 0) {
+            clearInterval(currentGame.timerInterval);
+            gameOver();
+        }
+    }, 1000);
+}
+
+function levelComplete() {
+    clearInterval(currentGame.timerInterval);
+    currentGame.isPlaying = false;
+    playSound('win');
+    vibrate([50, 30, 50, 30, 100]);
+
+    const timeBonus = currentGame.timeLeft * 5;
+    const totalScore = currentGame.score + timeBonus;
+    gameState.totalScore += totalScore;
+
+    const level = LEVELS.find(l => l.level === gameState.currentLevel);
+    const timePercent = currentGame.timeLeft / level.time_limit;
+    let stars = 1;
+    if (timePercent > 0.5) stars = 2;
+    if (timePercent > 0.75 && currentGame.hintsUsed === 0) stars = 3;
+    gameState.levelStars[gameState.currentLevel] = stars;
+    gameState.totalStars = Object.values(gameState.levelStars).reduce((a, b) => a + b, 0);
+
+    if (gameState.currentLevel >= gameState.unlockedLevel) {
+        gameState.unlockedLevel = Math.min(gameState.currentLevel + 1, 200);
+    }
+    saveGameState();
+
+    showModal('🎉', 'Level Complete!', 
+        'Score: ' + totalScore + '<br>Time Bonus: ' + timeBonus + '<br>Stars: ' + '⭐'.repeat(stars),
+        [{text: 'Next Level', action: function() { closeModal(); startLevel(gameState.currentLevel + 1); }, primary: true},
+         {text: 'Menu', action: function() { closeModal(); showScreen('menu-screen'); }}]);
+}
+
+function gameOver() {
+    currentGame.isPlaying = false;
+    playSound('lose');
+    vibrate([100, 50, 100, 50, 200]);
+    showModal('😢', "Time's Up!", 
+        'You found ' + currentGame.foundWords.length + ' of ' + currentGame.words.length + ' words.<br>Score: ' + currentGame.score,
+        [{text: 'Try Again', action: function() { closeModal(); startLevel(gameState.currentLevel); }, primary: true},
+         {text: 'Menu', action: function() { closeModal(); showScreen('menu-screen'); }}]);
+}
+
+function pauseGame() {
+    if (!currentGame.isPlaying) return;
+    currentGame.isPaused = !currentGame.isPaused;
+    if (currentGame.isPaused) {
+        showModal('⏸', 'Paused', 'Take a break!',
+            [{text: 'Resume', action: function() { closeModal(); currentGame.isPaused = false; }, primary: true},
+             {text: 'Restart', action: function() { closeModal(); restartLevel(); }},
+             {text: 'Menu', action: function() { closeModal(); showScreen('menu-screen'); }}]);
+    }
+}
+
+function restartLevel() {
+    clearInterval(currentGame.timerInterval);
+    startLevel(gameState.currentLevel);
+}
+
+function useHint() {
+    if (!gameState.settings.hints || !currentGame.isPlaying || currentGame.isPaused) return;
+    const unfound = currentGame.words.filter(w => !w.found);
+    if (unfound.length === 0) return;
+    const word = unfound[0];
+    const pos = word.positions[0];
+    const cell = document.querySelector('#word-grid .grid-cell[data-row="' + pos.row + '"][data-col="' + pos.col + '"]');
+    if (cell) {
+        cell.classList.add('highlight');
+        setTimeout(() => cell.classList.remove('highlight'), 1000);
+    }
+    currentGame.hintsUsed++;
+    playSound('select');
+}
+
+// ==================== BOSS MODE ====================
+function startBossMode() {
+    bossState = {
+        wave: 1, score: 0, combo: 0, maxCombo: 0,
+        grid: [], words: [], foundWords: [], selectedCells: [],
+        gridSize: 10, timeLeft: 45, timerInterval: null,
+        isPlaying: true, isPaused: false, wordsFoundThisWave: 0
+    };
+    document.getElementById('boss-score').textContent = '0';
+    document.getElementById('boss-level').textContent = '1';
+    document.getElementById('boss-combo').textContent = '0';
+    generateBossWave();
+    showScreen('boss-screen');
+    startBossTimer();
+}
+
+function generateBossWave() {
+    const gridSize = Math.min(8 + Math.floor(bossState.wave / 3), 18);
+    const numWords = Math.min(4 + Math.floor(bossState.wave / 2), 20);
+    const timeLimit = Math.max(60 - bossState.wave * 2, 20);
+
+    bossState.gridSize = gridSize;
+    bossState.timeLeft = timeLimit;
+    bossState.wordsFoundThisWave = 0;
+
+    const allWords = [];
+    Object.values(WORD_POOL).forEach(arr => allWords.push(...arr));
+    const validWords = allWords.filter(w => w.length <= gridSize);
+    const selected = [];
+    const wordsCopy = [...validWords];
+    while (selected.length < numWords && wordsCopy.length > 0) {
+        const idx = Math.floor(Math.random() * wordsCopy.length);
+        const word = wordsCopy.splice(idx, 1)[0];
+        if (!selected.includes(word)) selected.push(word);
+    }
+
+    const result = generateWordSearch(selected, gridSize);
+    bossState.grid = result.grid;
+    bossState.words = result.placedWords;
+    bossState.foundWords = [];
+    bossState.selectedCells = [];
+
+    renderBossGrid();
+    renderBossWordList();
+    document.getElementById('boss-level').textContent = bossState.wave;
+    document.getElementById('boss-combo').textContent = bossState.combo;
+}
+
+function renderBossGrid() {
+    const gridEl = document.getElementById('boss-grid');
+    if (!gridEl) return;
+    gridEl.innerHTML = '';
+    gridEl.style.gridTemplateColumns = 'repeat(' + bossState.gridSize + ', 1fr)';
+
+    for (let r = 0; r < bossState.gridSize; r++) {
+        for (let c = 0; c < bossState.gridSize; c++) {
+            const cell = document.createElement('div');
+            cell.className = 'grid-cell';
+            cell.dataset.row = r;
+            cell.dataset.col = c;
+            cell.textContent = bossState.grid[r][c];
+            cell.addEventListener('mousedown', handleBossCellStart);
+            cell.addEventListener('mouseover', handleBossCellOver);
+            cell.addEventListener('mouseup', handleBossCellEnd);
+            cell.addEventListener('touchstart', handleBossTouchStart, {passive: false});
+            cell.addEventListener('touchmove', handleBossTouchMove, {passive: false});
+            cell.addEventListener('touchend', handleBossCellEnd);
+            gridEl.appendChild(cell);
+        }
+    }
+}
+
+function renderBossWordList() {
+    const listEl = document.getElementById('boss-word-list');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    bossState.words.forEach(w => {
+        const tag = document.createElement('div');
+        tag.className = 'word-tag' + (w.found ? ' found' : '');
+        tag.textContent = w.word;
+        tag.dataset.word = w.word;
+        listEl.appendChild(tag);
+    });
+}
+
+function handleBossCellStart(e) {
+    if (!bossState.isPlaying || bossState.isPaused) return;
+    e.preventDefault();
+    const cell = e.target.closest('.grid-cell');
+    if (!cell) return;
+    bossSelecting = true;
+    bossSelectionStart = {row: parseInt(cell.dataset.row), col: parseInt(cell.dataset.col)};
+    bossState.selectedCells = [bossSelectionStart];
+    updateBossSelection();
+    playSound('select');
+    vibrate(10);
+}
+
+function handleBossCellOver(e) {
+    if (!bossSelecting || !bossState.isPlaying || bossState.isPaused) return;
+    e.preventDefault();
+    const cell = e.target.closest('.grid-cell');
+    if (!cell) return;
+    const end = {row: parseInt(cell.dataset.row), col: parseInt(cell.dataset.col)};
+    bossState.selectedCells = getLineCells(bossSelectionStart, end);
+    updateBossSelection();
+}
+
+function handleBossCellEnd(e) {
+    if (!bossSelecting) return;
+    e.preventDefault();
+    bossSelecting = false;
+    checkBossWord();
+    bossState.selectedCells = [];
+    updateBossSelection();
+}
+
+function handleBossTouchStart(e) {
+    if (!bossState.isPlaying || bossState.isPaused) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const cell = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!cell || !cell.classList.contains('grid-cell')) return;
+    bossSelecting = true;
+    bossSelectionStart = {row: parseInt(cell.dataset.row), col: parseInt(cell.dataset.col)};
+    bossState.selectedCells = [bossSelectionStart];
+    updateBossSelection();
+    playSound('select');
+    vibrate(10);
+}
+
+function handleBossTouchMove(e) {
+    if (!bossSelecting || !bossState.isPlaying || bossState.isPaused) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const cell = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!cell || !cell.classList.contains('grid-cell')) return;
+    const end = {row: parseInt(cell.dataset.row), col: parseInt(cell.dataset.col)};
+    bossState.selectedCells = getLineCells(bossSelectionStart, end);
+    updateBossSelection();
+}
+
+function updateBossSelection() {
+    document.querySelectorAll('#boss-grid .grid-cell').forEach(cell => cell.classList.remove('selected'));
+    bossState.selectedCells.forEach(({row, col}) => {
+        const cell = document.querySelector('#boss-grid .grid-cell[data-row="' + row + '"][data-col="' + col + '"]');
+        if (cell) cell.classList.add('selected');
+    });
+}
+
+function checkBossWord() {
+    if (bossState.selectedCells.length < 2) return;
+    const selectedWord = bossState.selectedCells.map(({row, col}) => bossState.grid[row][col]).join('');
+    const reversedWord = selectedWord.split('').reverse().join('');
+    let found = false;
+
+    for (const wordObj of bossState.words) {
+        if (wordObj.found) continue;
+        if (selectedWord === wordObj.word || reversedWord === wordObj.word) {
+            const positions = bossState.selectedCells;
+            const wp = wordObj.positions;
+            const match = positions.length === wp.length && 
+                (positions.every((p, i) => p.row === wp[i].row && p.col === wp[i].col) ||
+                 positions.every((p, i) => p.row === wp[wp.length - 1 - i].row && p.col === wp[wp.length - 1 - i].col));
+
+            if (match) {
+                wordObj.found = true;
+                bossState.foundWords.push(wordObj.word);
+                bossState.wordsFoundThisWave++;
+                found = true;
+
+                wordObj.positions.forEach(({row, col}) => {
+                    const cell = document.querySelector('#boss-grid .grid-cell[data-row="' + row + '"][data-col="' + col + '"]');
+                    if (cell) { cell.classList.add('found'); cell.classList.remove('selected'); }
+                });
+
+                const tag = document.querySelector('#boss-word-list .word-tag[data-word="' + wordObj.word + '"]');
+                if (tag) tag.classList.add('found');
+
+                bossState.combo++;
+                if (bossState.combo > bossState.maxCombo) bossState.maxCombo = bossState.combo;
+                const comboMultiplier = 1 + (bossState.combo - 1) * 0.5;
+                const wordScore = Math.floor(wordObj.word.length * 10 * comboMultiplier);
+                bossState.score += wordScore;
+                document.getElementById('boss-score').textContent = bossState.score;
+                document.getElementById('boss-combo').textContent = bossState.combo;
+
+                playSound('found');
+                vibrate([30, 50, 30]);
+
+                if (bossState.combo >= 3) {
+                    showCombo(bossState.combo + 'x COMBO!');
+                    playSound('combo');
+                    vibrate([20, 20, 20, 20, 50]);
+                }
+                break;
+            }
+        }
+    }
+
+    if (!found) {
+        bossState.combo = 0;
+        document.getElementById('boss-combo').textContent = '0';
+        vibrate(20);
+        const grid = document.getElementById('boss-grid');
+        if (grid) { grid.style.animation = 'shake 0.3s ease'; setTimeout(() => grid.style.animation = '', 300); }
+    }
+
+    if (bossState.foundWords.length === bossState.words.length) {
+        bossState.wave++;
+        playSound('win');
+        vibrate([50, 30, 50, 30, 100]);
+        setTimeout(() => generateBossWave(), 1000);
+    }
+}
+
+function startBossTimer() {
+    if (bossState.timerInterval) clearInterval(bossState.timerInterval);
+    bossState.timerInterval = setInterval(() => {
+        if (bossState.isPaused) return;
+        bossState.timeLeft--;
+        if (bossState.timeLeft <= 0) {
+            clearInterval(bossState.timerInterval);
+            bossGameOver();
+        }
+    }, 1000);
+}
+
+function bossGameOver() {
+    bossState.isPlaying = false;
+    playSound('lose');
+    vibrate([100, 50, 100, 50, 200]);
+    showModal('👑', 'Boss Mode Over!', 
+        'Wave: ' + bossState.wave + '<br>Score: ' + bossState.score + '<br>Max Combo: ' + bossState.maxCombo + 'x',
+        [{text: 'Play Again', action: function() { closeModal(); startBossMode(); }, primary: true},
+         {text: 'Menu', action: function() { closeModal(); showScreen('menu-screen'); }}]);
+}
+
+function pauseBoss() {
+    if (!bossState.isPlaying) return;
+    bossState.isPaused = !bossState.isPaused;
+    if (bossState.isPaused) {
+        showModal('⏸', 'Paused', 'Boss Mode Paused',
+            [{text: 'Resume', action: function() { closeModal(); bossState.isPaused = false; }, primary: true},
+             {text: 'Restart', action: function() { closeModal(); startBossMode(); }},
+             {text: 'Menu', action: function() { closeModal(); showScreen('menu-screen'); }}]);
+    }
+}
+
+function showCombo(text) {
+    const el = document.getElementById('combo-display');
+    if (!el) return;
+    el.textContent = text;
+    el.classList.remove('show');
+    void el.offsetWidth;
+    el.classList.add('show');
+}
+
+// ==================== SETTINGS ====================
+function toggleSetting(key) {
+    gameState.settings[key] = !gameState.settings[key];
+    const toggle = document.getElementById('toggle-' + key);
+    if (toggle) {
+        if (gameState.settings[key]) toggle.classList.add('active');
+        else toggle.classList.remove('active');
+    }
+    saveGameState();
+}
+
+function resetProgress() {
+    if (confirm('Are you sure you want to reset all progress?')) {
+        gameState = {
+            currentLevel: 1, unlockedLevel: 1, totalScore: 0, totalStars: 0, levelStars: {},
+            settings: gameState.settings
+        };
+        saveGameState();
+        showModal('✅', 'Progress Reset', 'All progress has been reset.',
+            [{text: 'OK', action: function() { closeModal(); showScreen('menu-screen'); }, primary: true}]);
+    }
+}
+
+// ==================== MODAL ====================
+function showModal(icon, title, text, buttons) {
+    const modal = document.getElementById('modal');
+    if (!modal) return;
+    document.getElementById('modal-icon').textContent = icon;
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-text').innerHTML = text;
+    const btnContainer = document.getElementById('modal-buttons');
+    btnContainer.innerHTML = '';
+    buttons.forEach(btn => {
+        const button = document.createElement('button');
+        button.className = 'neu-btn' + (btn.primary ? ' primary' : '');
+        button.textContent = btn.text;
+        button.onclick = btn.action;
+        btnContainer.appendChild(button);
+    });
+    modal.classList.add('active');
+}
+
+function closeModal() {
+    const modal = document.getElementById('modal');
+    if (modal) modal.classList.remove('active');
+}
+
+function showHowToPlay() {
+    showModal('📖', 'How to Play', 
+        '1. Find hidden words in the letter grid<br>' +
+        '2. Click and drag to select letters<br>' +
+        '3. Words can be horizontal, vertical, or diagonal<br>' +
+        '4. Find all words before time runs out!<br>' +
+        '5. Earn up to 3 stars per level<br><br>' +
+        '<b>Boss Mode:</b><br>' +
+        'Infinite waves with increasing difficulty.<br>' +
+        'Build combos for bonus points!',
+        [{text: 'Got it!', action: closeModal, primary: true}]);
+}
+
+// ==================== SAVE/LOAD ====================
+function saveGameState() {
+    try {
+        localStorage.setItem('wordSearchGame', JSON.stringify(gameState));
+    } catch(e) {
+        console.log('Save failed');
+    }
+}
+
+function loadGameState() {
+    try {
+        const saved = localStorage.getItem('wordSearchGame');
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            gameState = Object.assign({}, gameState, parsed);
+        }
+    } catch(e) {
+        console.log('Load failed');
+    }
+    ['sound', 'vibrate', 'music', 'hints'].forEach(key => {
+        const toggle = document.getElementById('toggle-' + key);
+        if (toggle) {
+            if (gameState.settings[key]) toggle.classList.add('active');
+            else toggle.classList.remove('active');
+        }
+    });
+}
+
+// Prevent context menu on long press
+document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+    </script>
+</body>
+</html>
